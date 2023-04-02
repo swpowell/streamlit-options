@@ -1,6 +1,5 @@
 import yfinance as yf
 import streamlit as st
-from matplotlib import pyplot as plt
 import plotly.graph_objs as go
 
 # """
@@ -64,7 +63,7 @@ def getoptionsprices(stock,dates):
 		purchase = chain.calls.lastTradeDate
 	
 		# Get the last purchase dates. We'll exclude anything over 60 days old because it is probably too far OTM or ITM to bother with anyway.
-		dts = [dt.strptime(str(i),'%Y-%m-%d %H:%M:%S') for i in purchase]
+		dts = [dt.strptime(str(i),'%Y-%m-%d %H:%M:%S%z') for i in purchase]
 		deltas = np.array([(dt.today().date()-i.date()).days for i in dts])
 
 		# Exclude all ITM calls as well since we generally won't use them for investing in LEAPs.
@@ -291,8 +290,9 @@ if ticker:
     price = stock.history(period='1d',interval='1m')['Close'].iloc[-1]
     previous = round(previous,2)
     price = round(price,2)
+    dprice = round(price-previous)
     # st.write('The current price of', ticker, 'is', price)
-    st.metric(label="Current Price", value='$'+str(price), delta=previous-price,
+    st.metric(label="Current Price", value='$'+str(price), delta=dprice,
     delta_color="inverse")
 
     # Add a button to the Streamlit app
