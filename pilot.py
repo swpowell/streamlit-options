@@ -9,7 +9,7 @@ import plotly.graph_objs as go
 # Version: 1.0
 # Date: 7 April 2021
 # Updated: 2 December 2023
-# Author: Scott W. Powell (powellscottw@gmail.com)
+# Author: Scott W. Powell
 
 # Purpose: Find long-dated call options with high realistic potential return on investment based 
 # on growth assumptions consistent with growth over specified historical time period.
