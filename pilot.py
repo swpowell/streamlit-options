@@ -175,28 +175,32 @@ def multiplier(options,prediction):
 
 #******************************************************
 
+@st.cache_resource
 def liststock(ticker,years):
+
+	output = {}
 
 	try:
 		# Create object for ticker.
-		stock = yf.Ticker(ticker)
+		output['stock'] = yf.Ticker(ticker)
 
 		# Get the dates of LEAPs for the stock ticker.
-		dates = findLEAPs(stock)
+		dates = findLEAPs(output['stock'])
 		
 		# Get the latest bid/ask/strike prices and recent volume on each LEAP.
 		# Will only show strike prices with purchase in last 60 days.
 		# (This helps avoid analysis of illiquid options.))
-		options = getoptionsprices(stock,dates)
+		output['options'] = getoptionsprices(output['stock'],dates)
 
 		# Next, simulate the future price of each stock using Monte Carlo approach based on historical data.
-		prediction = simulateMC(stock,years)	
+		output['prediction'] = simulateMC(output['stock'],years)	
 	
 		# Finally, compute expected value for the various options and add to options tables.	
-		options = multiplier(options,prediction)		
+		output['options'] = multiplier(output['options'],output['prediction'])		
 
-		return stock, prediction, options
-
+		# return stock, prediction, options
+		return output
+	
 	except:
 		#sys.exit('Invalid ticker name entered.')
 		return None	
@@ -207,15 +211,15 @@ def run(ticker,years):
 
 	# Get pandas tables of LEAP information, including potential growth.
 	# print('\nGetting options information and making predictions...')
-	stock, prediction, options = liststock(ticker,years)
+	output = liststock(ticker,years)
 
-	if options is None:
+	if output is None:
 		pass
 		# print('\nSomething went wrong. Perhaps an invalid ticker was entered. \
 		# 	If the error repeatedly occurs, there may be a problem with the Yahoo \
 		# 	Finance API and you may need to wait and try again later.')
 	else:
-		return stock, prediction, options
+		return output
 
 #******************************************************
 
@@ -285,27 +289,29 @@ st.title('LEAPS options information')
 ticker = st.text_input('Enter a stock ticker (e.g. AAPL)')
 
 if ticker:
-    stock, prediction, options = run(ticker,5)
-    previous = stock.history()['Close'].iloc[-1]
-    price = stock.history(period='1d',interval='1m')['Close'].iloc[-1]
-    previous = round(previous,2)
-    price = round(price,2)
-    dprice = round(price-previous)
-    # st.write('The current price of', ticker, 'is', price)
-    st.metric(label="Current Price", value='$'+str(price), delta=dprice,
-    delta_color="inverse")
+	# Run the code to do the MC simulations and get LEAPS info.
+	output = run(ticker,5)
+	stock, prediction, options = output['stock'], output['prediction'], output['options']
+
+	# Get price info.
+	previous = stock.history()['Close'].iloc[-1]
+	price = stock.history(period='1d',interval='1m')['Close'].iloc[-1]
+	previous = round(previous,2)
+	price = round(price,2)
+	dprice = round(price-previous)
+
+	# Display the current price and change.
+	st.metric(label="Current Price", value='$'+str(price), delta=dprice,
+	delta_color="inverse")
 
     # Add a button to the Streamlit app
-    if st.button("Show Monte Carlo outcomes"):
-        # If the button is pressed, display the graph
-        plotmontecarlo(prediction)
-        st.write('<style>div.row-widget.stRadio > div{flex-direction:row;}</style>', unsafe_allow_html=True)
-        if st.button('Close Graph'):
-            # hide the plot by setting the plotly_chart to None
-            st.plotly_chart(None)
+	if st.button("Show Monte Carlo outcomes"):
+		# If the button is pressed, display the graph
+		plotmontecarlo(prediction)
+		if st.button('Close Graph'):
+			# hide the plot by setting the plotly_chart to None
+			st.plotly_chart(None)
 	    
-    if options:
-        # for key in options:
-            # st.write('This is the LEAPS info for ' + key)
-            # st.dataframe(options[key])
-        display_dataframes(options)
+	# Show the dataframes with a drop down menu to select the date of expiry for each LEAPS contract.	
+	if options:
+		display_dataframes(options)
