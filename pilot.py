@@ -3,6 +3,7 @@ import streamlit as st
 import plotly.graph_objs as go
 import numpy as np
 import pandas_ta as pta
+import pandas as pd
 
 # """
 
@@ -295,20 +296,16 @@ def plotmontecarlo(data):
 
 #******************************************************
 
-@st.cache_resource
 def prerun():
 
 	tickers = ['AAPL', 'ABT', 'ADBE', 'AMC', 'AMD', 'AMZN', 'BA', 'BABA', 'BAC', 'BBY', 'BX', 'C', 'CAT', 'CCL', \
-	'CHWY', 'CI', 'CLX', 'CMCSA', 'CMG', 'COST', 'CRM']#, 'CRWD', 'CSX', 'CVX', 'DAL', 'DIS', 'EBAY', 'F', 'FDX', \
-	# 'GME', 'GOOGL', 'GPS', 'GS', 'HAL', 'HD', 'HLT', 'HUM', 'JNJ', 'JPM', 'K', 'KO', 'KR', 'KSS', 'LMT', 'LOW', 'LUV', 'M', 'MA', \
-	# 'MCD', 'META', 'MRNA', 'MS', 'MSFT', 'MU', 'NFLX', 'NKE', 'NSC', 'NVDA', 'NVAX', 'OXY', 'PANW', 'PEP', 'PFE', 'PG', 'PLTR', \
-	# 'PYPL', 'QCOM', 'ROKU', 'SWBI', 'SBUX', 'T', 'TGT', 'TSCO', 'TSLA', 'UAL', \
-	# 'UNH', 'V', 'VZ', 'WFC', 'WMT', 'XOM']
+	'CHWY', 'CI', 'CLX', 'CMCSA', 'CMG', 'COST', 'CRM', 'CRWD', 'CSX', 'CVX', 'DAL', 'DIS', 'EBAY', 'F', 'FDX', \
+	'GME', 'GOOGL', 'GPS', 'GS', 'HAL', 'HD', 'HLT', 'HUM', 'JNJ', 'JPM', 'K', 'KO', 'KR', 'KSS', 'LMT', 'LOW', 'LUV', 'M', 'MA', \
+	'MCD', 'META', 'MRNA', 'MS', 'MSFT', 'MU', 'NFLX', 'NKE', 'NSC', 'NVDA', 'NVAX', 'OXY', 'PANW', 'PEP', 'PFE', 'PG', 'PLTR', \
+	'PYPL', 'QCOM', 'ROKU', 'SWBI', 'SBUX', 'T', 'TGT', 'TSCO', 'TSLA', 'UAL', \
+	'UNH', 'V', 'VZ', 'WFC', 'WMT', 'XOM', 'SPY', 'QQQ']
 
-	RSIdata = {}
-	RSIdata['RSI1wk'] = {}
-	RSIdata['RSI1dy'] = {}
-	RSIdata['RSI1hr'] = {}
+	RSIdata = pd.DataFrame(columns = ['RSI1wk','RSI1dy','RSI1hr'],index=tickers)
 
 	for ticker in tickers:
 		try: RSIdata['RSI1wk'][ticker] = getRSI(ticker,period='2y',interval='1wk')
@@ -318,21 +315,78 @@ def prerun():
 		try: RSIdata['RSI1hr'][ticker] = getRSI(ticker,period='1wk',interval='60m')
 		except: continue
 
-	return RSIdata
+	RSIdata.to_csv('data/RSIdata.csv')
+
+	# Ishares Sector ETFs
+	# IYE: Energy
+	# IYF: Financials
+	# IYW: Technology
+	# IYR: Real Estate
+	# IYH: Healthcare
+	# IYK: Consumer Staples
+	# ITA: Aerospace and Defense
+	# ITB: Construction
+	# IDU: Utilities
+	# IHE: Pharma
+
+	ishares = ['IYE','IYF','IYW','IYR','IYH','IYK','ITA','ITB','IDU','IHE']
+	labels = ['Energy (IYE)','Financials (IYF)','Technology (IYW)','Real Estate (IYR)','Healthcare (IYH)',\
+	    'Consumer Staples (IYK)',' Aerospace/Defense (ITA)','Construction (ITB)','Utilities (IDU)',' Pharmaceuticals (IHE)']
+	sectorRSI = pd.DataFrame(columns=ishares,index=['Daily RSI'])
+	for ticker in ishares:
+		try: sectorRSI[ticker]['Daily RSI'] = round(getRSI(ticker),2)
+		except: continue
+	sectorRSI.columns = labels
+
+	sectorRSI.to_csv('data/sectorRSI.csv')
 
 #******************************************************
 
 # Get some information about several stocks beforehand to make recommendations
 # about what is overbought and oversold on daily timescales.
 
-RSIdata = prerun()
-overbought = [key for key in RSIdata['RSI1dy'] if RSIdata['RSI1dy'][key] > 70]
-oversold = [key for key in RSIdata['RSI1dy'] if RSIdata['RSI1dy'][key] < 30]
+# RSIdata = prerun()
 
+# Get pre-written data
+RSIdata = pd.read_csv('data/RSIdata.csv',index_col=0).transpose()
+sectorRSI = pd.read_csv('data/sectorRSI.csv',index_col=0)
+
+overbought = [key for key in RSIdata if RSIdata[key]['RSI1dy'] > 70]
+oversold = [key for key in RSIdata if RSIdata[key]['RSI1dy'] < 30]
+
+# Drop down for overbought and oversold stocks in sidebar.
 if len(overbought) > 0:
 	st.sidebar.selectbox('Overbought Stocks', overbought)
 if len(oversold) > 0:
 	st.sidebar.selectbox('Oversold Stocks', oversold)
+
+# List of sectors with daily RSI in certain color.
+# Under 30: red (oversold)
+# 30–40: orange (nearing oversold)
+# 40-60: neutral (white)
+# 60-70: blue (nearing overbought)
+# Over 70: green (overbought)
+
+st.sidebar.write('')
+st.sidebar.write('Sector analysis')
+# st.sidebar.write('Energy: ' + str(sectorRSI['IYE']['RSIdaily']))
+sectorRSI = sectorRSI.transpose().applymap('{:.2f}'.format)
+
+def highlight_cells(val):
+	if float(val) < 30:
+		color = 'red'
+	elif float(val) >= 30 and float(val) <= 40:
+		color = 'orange'
+	elif float(val) >= 60 and float(val) <= 70:
+		color = 'lightblue'
+	elif float(val) > 70:
+		color = 'green'
+	else:
+		color = 'white'
+	return 'color: %s' % color
+
+# st.sidebar.table(sectorRSI.transpose().style.format("{:.2f}"))
+st.sidebar.table(sectorRSI.style.applymap(highlight_cells))
 
 st.title('LEAPS options information')
 
@@ -349,17 +403,17 @@ if ticker:
 	# cache every time a new ticker is entered.
 
 	# Get price info.
-	previous = stock.history(period='1w',interval='1d').sort_values('Date')['Close'].iloc[-1]
+	previous = stock.history(period='1wk',interval='1d').sort_values('Date')['Close'].iloc[-2]
 	price = stock.history(period='1d',interval='1m')['Close'].iloc[-1]
 	previous = round(previous,2)
 	price = round(price,2)
 
 	if ~np.isnan(previous) and ~np.isnan(price):
-		dprice = round(price-previous)
+		dprice = round((price-previous),2)
 
 	# Display the current price and change.
 	st.metric(label="Current Price", value='$'+str(price), delta=dprice,
-	delta_color="inverse")
+	delta_color="normal")
 
     # Add a button to the Streamlit app
 	if st.button("Show Monte Carlo outcomes"):
