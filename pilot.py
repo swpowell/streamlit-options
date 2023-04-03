@@ -1,6 +1,8 @@
 import yfinance as yf
 import streamlit as st
 import plotly.graph_objs as go
+import numpy as np
+import pandas_ta as pta
 
 # """
 
@@ -168,10 +170,21 @@ def multiplier(options,prediction):
 		ev = np.round(np.median(outcomes),2)
 
 		# Add column to dataframe for each option.
-		options[i]['Implied Expiration Value'] = np.maximum(0,ev-options[i]['Strike Price'])
-		options[i]['Implied Factoral Gain'] = np.round(options[i]['Implied Expiration Value']/options[i]['Ask Price'],2)
+		options[i]['Exp. Value'] = np.maximum(0,ev-options[i]['Strike Price'])
+		options[i]['Exp. Fraction'] = np.round(options[i]['Exp. Value']/options[i]['Ask Price'],2)
 
 	return options
+
+#******************************************************
+
+def getRSI(ticker,period='1y',interval='1d'):
+
+    # Relative Strength Index (Uses Wilders averaging by default; I'm used to exponential)
+	stock = yf.Ticker(ticker)
+	prices = stock.history(period=period,interval=interval)['Close']
+	RSI = round(pta.rsi(prices, length=14)[-1],2)
+
+	return RSI
 
 #******************************************************
 
@@ -277,12 +290,49 @@ def plotmontecarlo(data):
                     yaxis_title='Price',
 		            showlegend=False)
 
-
     # Show the plot in streamlit
     st.plotly_chart(fig, use_container_width=True)
 
+#******************************************************
+
+@st.cache_resource
+def prerun():
+
+	tickers = ['AAPL', 'ABT', 'ADBE', 'AMC', 'AMD', 'AMZN', 'BA', 'BABA', 'BAC', 'BBY', 'BX', 'C', 'CAT', 'CCL', \
+	'CHWY', 'CI', 'CLX', 'CMCSA', 'CMG', 'COST', 'CRM']#, 'CRWD', 'CSX', 'CVX', 'DAL', 'DIS', 'EBAY', 'F', 'FDX', \
+	# 'GME', 'GOOGL', 'GPS', 'GS', 'HAL', 'HD', 'HLT', 'HUM', 'JNJ', 'JPM', 'K', 'KO', 'KR', 'KSS', 'LMT', 'LOW', 'LUV', 'M', 'MA', \
+	# 'MCD', 'META', 'MRNA', 'MS', 'MSFT', 'MU', 'NFLX', 'NKE', 'NSC', 'NVDA', 'NVAX', 'OXY', 'PANW', 'PEP', 'PFE', 'PG', 'PLTR', \
+	# 'PYPL', 'QCOM', 'ROKU', 'SWBI', 'SBUX', 'T', 'TGT', 'TSCO', 'TSLA', 'UAL', \
+	# 'UNH', 'V', 'VZ', 'WFC', 'WMT', 'XOM']
+
+	RSIdata = {}
+	RSIdata['RSI1wk'] = {}
+	RSIdata['RSI1dy'] = {}
+	RSIdata['RSI1hr'] = {}
+
+	for ticker in tickers:
+		try: RSIdata['RSI1wk'][ticker] = getRSI(ticker,period='2y',interval='1wk')
+		except: continue
+		try: RSIdata['RSI1dy'][ticker] = getRSI(ticker)
+		except: continue
+		try: RSIdata['RSI1hr'][ticker] = getRSI(ticker,period='1wk',interval='60m')
+		except: continue
+
+	return RSIdata
 
 #******************************************************
+
+# Get some information about several stocks beforehand to make recommendations
+# about what is overbought and oversold on daily timescales.
+
+RSIdata = prerun()
+overbought = [key for key in RSIdata['RSI1dy'] if RSIdata['RSI1dy'][key] > 70]
+oversold = [key for key in RSIdata['RSI1dy'] if RSIdata['RSI1dy'][key] < 30]
+
+if len(overbought) > 0:
+	st.sidebar.selectbox('Overbought Stocks', overbought)
+if len(oversold) > 0:
+	st.sidebar.selectbox('Oversold Stocks', oversold)
 
 st.title('LEAPS options information')
 
@@ -293,12 +343,19 @@ if ticker:
 	output = run(ticker,5)
 	stock, prediction, options = output['stock'], output['prediction'], output['options']
 
+	# NOTE: Bug: There seems to be a bug with showing options tables for stocks
+	# that do not have a strike date available as late as the latest date available
+	# for the first stock analyzed when running the code. Probably need to clear the
+	# cache every time a new ticker is entered.
+
 	# Get price info.
-	previous = stock.history()['Close'].iloc[-1]
+	previous = stock.history(period='1w',interval='1d').sort_values('Date')['Close'].iloc[-1]
 	price = stock.history(period='1d',interval='1m')['Close'].iloc[-1]
 	previous = round(previous,2)
 	price = round(price,2)
-	dprice = round(price-previous)
+
+	if ~np.isnan(previous) and ~np.isnan(price):
+		dprice = round(price-previous)
 
 	# Display the current price and change.
 	st.metric(label="Current Price", value='$'+str(price), delta=dprice,
