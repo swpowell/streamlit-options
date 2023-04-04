@@ -1,6 +1,7 @@
 import yfinance as yf
 import streamlit as st
 import plotly.graph_objs as go
+from plotly.subplots import make_subplots
 import numpy as np
 import pandas_ta as pta
 import pandas as pd
@@ -342,35 +343,23 @@ def prerun():
 
 #******************************************************
 
-# Get some information about several stocks beforehand to make recommendations
-# about what is overbought and oversold on daily timescales.
-
-# RSIdata = prerun()
-
-# Get pre-written data
-RSIdata = pd.read_csv('data/RSIdata.csv',index_col=0).transpose()
-sectorRSI = pd.read_csv('data/sectorRSI.csv',index_col=0)
-
-overbought = [key for key in RSIdata if RSIdata[key]['RSI1dy'] > 70]
-oversold = [key for key in RSIdata if RSIdata[key]['RSI1dy'] < 30]
-
-# Drop down for overbought and oversold stocks in sidebar.
-if len(overbought) > 0:
-	st.sidebar.selectbox('Overbought Stocks', overbought)
-if len(oversold) > 0:
-	st.sidebar.selectbox('Oversold Stocks', oversold)
-
-# List of sectors with daily RSI in certain color.
-# Under 30: red (oversold)
-# 30–40: orange (nearing oversold)
-# 40-60: neutral (white)
-# 60-70: blue (nearing overbought)
-# Over 70: green (overbought)
-
-st.sidebar.write('')
-st.sidebar.write('Sector analysis')
-# st.sidebar.write('Energy: ' + str(sectorRSI['IYE']['RSIdaily']))
-sectorRSI = sectorRSI.transpose().applymap('{:.2f}'.format)
+def RSIcolorandtext(val):
+	if float(val) < 30:
+		color = 'red'
+		text = 'oversold'
+	elif float(val) >= 30 and float(val) <= 40:
+		color = 'orange'
+		text = 'near oversold'
+	elif float(val) >= 60 and float(val) <= 70:
+		color = 'lightblue'
+		text = 'near overbought'
+	elif float(val) > 70:
+		color = 'green'
+		text = 'overbought'
+	else:
+		color = 'white'
+		text = 'neutral'
+	return color, text
 
 def highlight_cells(val):
 	if float(val) < 30:
@@ -385,17 +374,57 @@ def highlight_cells(val):
 		color = 'white'
 	return 'color: %s' % color
 
+#******************************************************
+
+# Get some information about several stocks beforehand to make recommendations
+# about what is overbought and oversold on daily timescales.
+
+# RSIdata = prerun()
+
+# Get pre-written data
+RSIdata = pd.read_csv('data/RSIdata.csv',index_col=0).transpose()
+sectorRSI = pd.read_csv('data/sectorRSI.csv',index_col=0)
+
+overbought = [key for key in RSIdata if RSIdata[key]['RSI1dy'] > 70]
+oversold = [key for key in RSIdata if RSIdata[key]['RSI1dy'] < 30]
+
+# Drop down for overbought and oversold stocks in sidebar.
+if len(overbought) > 0:
+	selected = st.sidebar.selectbox('Overbought Stocks', overbought)
+if len(oversold) > 0:
+	selected = st.sidebar.selectbox('Oversold Stocks', oversold)
+
+# List of sectors with daily RSI in certain color.
+# Under 30: red (oversold)
+# 30–40: orange (nearing oversold)
+# 40-60: neutral (white)
+# 60-70: blue (nearing overbought)
+# Over 70: green (overbought)
+
+st.sidebar.write('')
+st.sidebar.write('Sector analysis')
+# st.sidebar.write('Energy: ' + str(sectorRSI['IYE']['RSIdaily']))
+sectorRSI = sectorRSI.transpose().applymap('{:.2f}'.format)
+
 # st.sidebar.table(sectorRSI.transpose().style.format("{:.2f}"))
 st.sidebar.table(sectorRSI.style.applymap(highlight_cells))
 
-st.title('LEAPS options information')
-
-ticker = st.text_input('Enter a stock ticker (e.g. AAPL)')
+ticker = st.text_input('Enter a stock ticker (e.g. AAPL) for more information',selected)
 
 if ticker:
+
+	st.subheader('Basic information')
+
 	# Run the code to do the MC simulations and get LEAPS info.
 	output = run(ticker,5)
 	stock, prediction, options = output['stock'], output['prediction'], output['options']
+
+	RSI1hr = getRSI(ticker,period='1wk',interval='1h')
+	RSI1dy = getRSI(ticker)
+	RSI1wk = getRSI(ticker,period='2y',interval='1wk')
+	cRSI1hr, tRSI1hr = RSIcolorandtext(RSI1hr)
+	cRSI1dy, tRSI1dy = RSIcolorandtext(RSI1dy)
+	cRSI1wk, tRSI1wk = RSIcolorandtext(RSI1wk)
 
 	# NOTE: Bug: There seems to be a bug with showing options tables for stocks
 	# that do not have a strike date available as late as the latest date available
@@ -411,9 +440,46 @@ if ticker:
 	if ~np.isnan(previous) and ~np.isnan(price):
 		dprice = round((price-previous),2)
 
+	# Set up columns for metrics.
+	col1, col2 = st.columns(2)
+
 	# Display the current price and change.
-	st.metric(label="Current Price", value='$'+str(price), delta=dprice,
+	col1.metric(label="Current Price", value='$'+str(price), delta=dprice,
 	delta_color="normal")
+
+	# col2.metric(label='RSI (weekly)',value=RSI1hr)
+	col2.write('Hourly: ' + str(RSI1hr) + ' ('+tRSI1hr+')')
+	col2.write('Daily: ' + str(RSI1dy) + ' ('+tRSI1dy+')')
+	col2.write('Weekly: ' + str(RSI1wk) + ' ('+tRSI1wk+')')
+
+	# Get stock price history and RSI history for 1-year chart.
+	history = stock.history(period='5y',interval='1d')
+	RSIhistory = round(pta.rsi(history['Close'], length=14),2)
+
+	# Make a plot of the stock prices and RSI.
+	# Create a Plotly figure with two scatter traces
+	fig2 = go.Figure()
+	# fig2.add_trace(go.Scatter(x=history.index, y=history,name='Price'),row=1,col=1)
+	# Add a Candlestick trace for the first subplot
+	fig2.add_trace(go.Candlestick(x=history.index, name='Price', open=history['Open'], high=history['High'], low=history['Low'], close=history['Close'],yaxis='y'))
+	fig2.add_trace(go.Scatter(x=RSIhistory.index, y=RSIhistory,name='RSI',yaxis='y2',opacity=0.5))
+
+	# Add the horizontal lines
+	fig2.add_shape(type='line', xref='paper', yref='y2', opacity = 0.5, x0=0, y0=30, x1=1, y1=30, line=dict(color='magenta', width=2, dash='dash'))
+	fig2.add_shape(type='line', xref='paper', yref='y2', opacity = 0.5, x0=0, y0=70, x1=1, y1=70, line=dict(color='magenta', width=2, dash='dash'))
+
+	# Add a hover text that shows the values of both traces at the same x-axis value
+	# Set the layout to include the second y-axis
+	fig2.update_layout(
+		yaxis=dict(title='Price', showgrid=False),
+		yaxis2=dict(title='RSI', showgrid=False, overlaying='y', side='right'),
+		hovermode='x unified', hoverlabel=dict(bgcolor="gray", font_size=16))
+
+	# Display the Plotly figure in Streamlit
+	st.plotly_chart(fig2)
+
+
+	st.subheader('LEAPS information')
 
     # Add a button to the Streamlit app
 	if st.button("Show Monte Carlo outcomes"):
