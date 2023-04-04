@@ -379,8 +379,8 @@ def highlight_cells(val):
 @st.cache_resource
 def getallRSIs(ticker):
 
-	RSI1m = getRSI(ticker,period='1d',interval='1m')
-	RSI5m = getRSI(ticker,period='1d',interval='5m')
+	RSI1m = getRSI(ticker,period='2d',interval='1m')
+	RSI5m = getRSI(ticker,period='2d',interval='5m')
 	RSI15m = getRSI(ticker,period='1wk',interval='15m')
 	RSI30m = getRSI(ticker,period='1wk',interval='30m')
 	RSI1hr = getRSI(ticker,period='1wk',interval='1h')
