@@ -418,10 +418,23 @@ if ticker:
 	# Run the code to do the MC simulations and get LEAPS info.
 	output = run(ticker,5)
 	stock, prediction, options = output['stock'], output['prediction'], output['options']
+	try:
+		divyield = 100*stock.info['trailingAnnualDividendRate']/stock.info['regularMarketPrice']
+	except:
+		pass
 
+	RSI1m = getRSI(ticker,period='1d',interval='1m')
+	RSI5m = getRSI(ticker,period='1d',interval='5m')
+	RSI15m = getRSI(ticker,period='1wk',interval='15m')
+	RSI30m = getRSI(ticker,period='1wk',interval='30m')
 	RSI1hr = getRSI(ticker,period='1wk',interval='1h')
 	RSI1dy = getRSI(ticker)
 	RSI1wk = getRSI(ticker,period='2y',interval='1wk')
+
+	cRSI1m, tRSI1m = RSIcolorandtext(RSI1m)
+	cRSI5m, tRSI5m = RSIcolorandtext(RSI5m)
+	cRSI15m, tRSI15m = RSIcolorandtext(RSI15m)
+	cRSI30m, tRSI30m = RSIcolorandtext(RSI30m)
 	cRSI1hr, tRSI1hr = RSIcolorandtext(RSI1hr)
 	cRSI1dy, tRSI1dy = RSIcolorandtext(RSI1dy)
 	cRSI1wk, tRSI1wk = RSIcolorandtext(RSI1wk)
@@ -432,8 +445,8 @@ if ticker:
 	# cache every time a new ticker is entered.
 
 	# Get price info.
-	previous = stock.history(period='1wk',interval='1d').sort_values('Date')['Close'].iloc[-2]
-	price = stock.history(period='1d',interval='1m')['Close'].iloc[-1]
+	previous = stock.fast_info['regularMarketPreviousClose']
+	price = stock.fast_info['lastPrice']
 	previous = round(previous,2)
 	price = round(price,2)
 
@@ -446,11 +459,29 @@ if ticker:
 	# Display the current price and change.
 	col1.metric(label="Current Price", value='$'+str(price), delta=dprice,
 	delta_color="normal")
+	try: col1.metric(label='Forward P/E', value=round(stock.info['forwardPE'],2))
+	except: col1.metric(label='Trailing P/E',value=round(stock.info['trailingPE'],2))
+	try: col1.metric(label='Yield', value=str(round(divyield,2))+'%')
+	except: pass
 
-	# col2.metric(label='RSI (weekly)',value=RSI1hr)
-	col2.write('Hourly: ' + str(RSI1hr) + ' ('+tRSI1hr+')')
-	col2.write('Daily: ' + str(RSI1dy) + ' ('+tRSI1dy+')')
-	col2.write('Weekly: ' + str(RSI1wk) + ' ('+tRSI1wk+')')
+	# col2.metric(label='RSI (weekly)',value=RSI1hr
+	RSItable = {
+		'Time':['1 min','5 min','15 min','30 min','Hourly','Daily','Weekly'],\
+		'RSI':[str(RSI1m) + ' ('+tRSI1m+')',str(RSI5m) + ' ('+tRSI5m+')',\
+	 	str(RSI15m) + ' ('+tRSI15m+')', str(RSI30m) + ' ('+tRSI30m+')',\
+		str(RSI1hr) + ' ('+tRSI1hr+')', str(RSI1dy) + ' ('+tRSI1dy+')',\
+	 	str(RSI1wk) + ' ('+tRSI1wk+')']}
+	RSItable = pd.DataFrame(RSItable).set_index('Time')
+
+	col2.write('RSI information')
+	col2.table(RSItable)
+	# col2.write('1 min: ' + str(RSI1m) + ' ('+tRSI1m+')')
+	# col2.write('5 min: ' + str(RSI5m) + ' ('+tRSI5m+')')
+	# col2.write('15 min: ' + str(RSI15m) + ' ('+tRSI15m+')')
+	# col2.write('30 min: ' + str(RSI30m) + ' ('+tRSI30m+')')
+	# col2.write('Hourly: ' + str(RSI1hr) + ' ('+tRSI1hr+')')
+	# col2.write('Daily: ' + str(RSI1dy) + ' ('+tRSI1dy+')')
+	# col2.write('Weekly: ' + str(RSI1wk) + ' ('+tRSI1wk+')')
 
 	# Get stock price history and RSI history for 1-year chart.
 	history = stock.history(period='5y',interval='1d')
