@@ -376,6 +376,31 @@ def highlight_cells(val):
 
 #******************************************************
 
+@st.cache_resource
+def getallRSIs(ticker):
+
+	RSI1m = getRSI(ticker,period='1d',interval='1m')
+	RSI5m = getRSI(ticker,period='1d',interval='5m')
+	RSI15m = getRSI(ticker,period='1wk',interval='15m')
+	RSI30m = getRSI(ticker,period='1wk',interval='30m')
+	RSI1hr = getRSI(ticker,period='1wk',interval='1h')
+	RSI1dy = getRSI(ticker)
+	RSI1wk = getRSI(ticker,period='2y',interval='1wk')
+
+	cRSI1m, tRSI1m = RSIcolorandtext(RSI1m)
+	cRSI5m, tRSI5m = RSIcolorandtext(RSI5m)
+	cRSI15m, tRSI15m = RSIcolorandtext(RSI15m)
+	cRSI30m, tRSI30m = RSIcolorandtext(RSI30m)
+	cRSI1hr, tRSI1hr = RSIcolorandtext(RSI1hr)
+	cRSI1dy, tRSI1dy = RSIcolorandtext(RSI1dy)
+	cRSI1wk, tRSI1wk = RSIcolorandtext(RSI1wk)
+
+	return RSI1m, RSI5m, RSI15m, RSI30m, RSI1hr, RSI1dy, RSI1wk,\
+			cRSI1m, cRSI5m, cRSI15m, cRSI30m, cRSI1hr, cRSI1dy, cRSI1wk,\
+			tRSI1m, tRSI5m, tRSI15m, tRSI30m, tRSI1hr, tRSI1dy, tRSI1wk
+
+#******************************************************
+
 # Get some information about several stocks beforehand to make recommendations
 # about what is overbought and oversold on daily timescales.
 
@@ -423,21 +448,9 @@ if ticker:
 	except:
 		pass
 
-	RSI1m = getRSI(ticker,period='1d',interval='1m')
-	RSI5m = getRSI(ticker,period='1d',interval='5m')
-	RSI15m = getRSI(ticker,period='1wk',interval='15m')
-	RSI30m = getRSI(ticker,period='1wk',interval='30m')
-	RSI1hr = getRSI(ticker,period='1wk',interval='1h')
-	RSI1dy = getRSI(ticker)
-	RSI1wk = getRSI(ticker,period='2y',interval='1wk')
-
-	cRSI1m, tRSI1m = RSIcolorandtext(RSI1m)
-	cRSI5m, tRSI5m = RSIcolorandtext(RSI5m)
-	cRSI15m, tRSI15m = RSIcolorandtext(RSI15m)
-	cRSI30m, tRSI30m = RSIcolorandtext(RSI30m)
-	cRSI1hr, tRSI1hr = RSIcolorandtext(RSI1hr)
-	cRSI1dy, tRSI1dy = RSIcolorandtext(RSI1dy)
-	cRSI1wk, tRSI1wk = RSIcolorandtext(RSI1wk)
+	RSI1m, RSI5m, RSI15m, RSI30m, RSI1hr, RSI1dy, RSI1wk,\
+		cRSI1m, cRSI5m, cRSI15m, cRSI30m, cRSI1hr, cRSI1dy, cRSI1wk,\
+		tRSI1m, tRSI5m, tRSI15m, tRSI30m, tRSI1hr, tRSI1dy, tRSI1wk = getallRSIs(ticker)
 
 	# NOTE: Bug: There seems to be a bug with showing options tables for stocks
 	# that do not have a strike date available as late as the latest date available
