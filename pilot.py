@@ -481,13 +481,12 @@ if ticker:
 
 	st.subheader('LEAPS information')
 
+	showmc = st.checkbox('Show Monte Carlo Outcomes')
     # Add a button to the Streamlit app
-	if st.button("Show Monte Carlo outcomes"):
+	if showmc:
 		# If the button is pressed, display the graph
 		plotmontecarlo(prediction)
-		if st.button('Close Graph'):
-			# hide the plot by setting the plotly_chart to None
-			st.plotly_chart(None)
+
 	    
 	# Show the dataframes with a drop down menu to select the date of expiry for each LEAPS contract.	
 	if options:
