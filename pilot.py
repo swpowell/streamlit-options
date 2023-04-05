@@ -254,7 +254,18 @@ def display_dataframes(options):
 
     # Create a container for the tab bar and data
     container = st.container()
-
+    container.markdown(
+		"""
+		<style>
+		.centered {
+			width: 50%;
+			margin: 0 auto;
+		}
+		</style>
+		""",
+		unsafe_allow_html=True,
+	)
+    
     # Create the tab bar
     tab_col, data_col = container.columns((1, num_tabs))
 
@@ -486,7 +497,7 @@ if ticker:
 	 	str(RSI1wk) + ' ('+tRSI1wk+')']}
 	RSItable = pd.DataFrame(RSItable).set_index('Time')
 
-	col2.write('RSI information')
+	col2.write('RSI information (no pre/post-market data)')
 	col2.table(RSItable)
 	# col2.write('1 min: ' + str(RSI1m) + ' ('+tRSI1m+')')
 	# col2.write('5 min: ' + str(RSI5m) + ' ('+tRSI5m+')')
