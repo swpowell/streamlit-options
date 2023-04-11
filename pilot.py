@@ -190,7 +190,7 @@ def getRSI(ticker,period='1y',interval='1d'):
 
 #******************************************************
 
-@st.cache_resource
+@st.cache_resource(ttl=120,max_entries=20)
 def liststock(ticker,years):
 
 	output = {}
@@ -387,7 +387,7 @@ def highlight_cells(val):
 
 #******************************************************
 
-@st.cache_resource
+@st.cache_resource(ttl=300)
 def getallRSIs(ticker):
 
 	RSI1m = getRSI(ticker,period='2d',interval='1m')
